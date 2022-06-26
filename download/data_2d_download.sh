@@ -1,4 +1,3 @@
-%%bash
 
 train_list=(
       # "2013_05_28_drive_0000_sync"

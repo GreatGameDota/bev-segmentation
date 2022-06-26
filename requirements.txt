@@ -1,0 +1,16 @@
+numpy
+pandas
+matplotlib
+scipy==1.2.0
+opencv-python
+tqdm
+segmentation_models_pytorch
+sklearn
+kaggle
+plotly
+timm
+effdet
+albumentations
+pillow
+open3d
+git+https://github.com/autonomousvision/kitti360Scripts.git

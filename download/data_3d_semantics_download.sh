@@ -1,4 +1,3 @@
-%%bash
 # Labeled Point Clouds
 root_dir=KITTI-360
 data_3d_dir=.

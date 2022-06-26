@@ -1,4 +1,3 @@
-%%bash
 # Vehicle Pose
 root_dir=KITTI-360
 data_3d_dir=data_poses

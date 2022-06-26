@@ -1,0 +1,6 @@
+[submodule "kitti360Scripts"]
+	path = kitti360Scripts
+	url = https://github.com/autonomousvision/kitti360Scripts.git
+[submodule "recoverKITTI360label"]
+	path = recoverKITTI360label
+	url = https://github.com/GreatGameDota/recoverKITTI360label.git
