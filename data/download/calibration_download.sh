@@ -1,5 +1,5 @@
 # Calibration
-root_dir=KITTI-360
+root_dir=data/KITTI-360
 data_3d_dir=.
 zip_file=calibration.zip
 

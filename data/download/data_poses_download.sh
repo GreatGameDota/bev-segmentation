@@ -1,5 +1,5 @@
 # Vehicle Pose
-root_dir=KITTI-360
+root_dir=data/KITTI-360
 data_3d_dir=data_poses
 zip_file=data_poses.zip
 

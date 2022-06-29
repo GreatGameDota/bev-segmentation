@@ -2,7 +2,7 @@
 train_list="$1"
 cam_list="00"
 
-root_dir=KITTI-360
+root_dir=data/KITTI-360
 data_2d_dir=data_2d_raw
 
 mkdir -p $root_dir
