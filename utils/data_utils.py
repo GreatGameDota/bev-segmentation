@@ -1,9 +1,12 @@
 import matplotlib
 import numpy as np
 import open3d as o3d
+
+from kitti360scripts.helpers.annotation import Annotation3D, Annotation3DPly, global2local
+from kitti360scripts.helpers.labels import id2label, labels, Label
 '''
 Author: GreatGameDota https://gihub.com/GreatGameDota
-Copyright @ 2022
+Copyright 2022
 
 Modified from: https://github.com/autonomousvision/kitti360Scripts/blob/master/kitti360scripts/viewer/kitti360Viewer3D.py
 '''
@@ -28,6 +31,19 @@ def assignColor(globalIds, gtType='semantic'):
             color[globalIds==uid] = getColor(instanceId)
         else:
             color[globalIds==uid] = (96,96,96) # stuff objects in instance mode
+    color = color.astype(np.float)/255.0
+    return color
+
+def assignColorLocal(localIds, gtType='semantic'):
+    color = np.zeros((localIds.size, 3))
+    for uid in np.unique(localIds):
+        semanticId = uid
+        if gtType=='semantic':
+            color[localIds==uid] = id2label[semanticId].color
+        elif instanceId>0:
+            color[localIds==uid] = getColor(instanceId)
+        else:
+            color[localIds==uid] = (96,96,96) # stuff objects in instance mode
     color = color.astype(np.float)/255.0
     return color
 
