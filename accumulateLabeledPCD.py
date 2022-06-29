@@ -7,7 +7,10 @@ import importlib
 
 from recoverKITTI360label.accumulation import PointAccumulation
 from utils.data_utils import assignColorLocal
-
+'''
+Author: GreatGameDota https://gihub.com/GreatGameDota
+Copyright 2022
+'''
 
 def recoverLabels(root_dir, sequence, output_dir, first_frame, last_frame, verbose=True, source=1, travel_padding=1, min_dist_dense=0.02, downSampleEvery=-1):
     all_spcds = os.listdir(os.path.join(os.path.join(os.path.join(root_dir,"data_3d_semantics/train"),sequence),"static"))
@@ -98,3 +101,5 @@ if __name__ == "__main__":
 
     for i in trange(start, end, frames):
         pcd = recoverLabels(root_dir, sequence, output_dir, i, i+frames, verbose=True, downSampleEvery=2)
+
+    # TODO: Download ply files
