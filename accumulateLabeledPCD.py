@@ -74,9 +74,9 @@ def recoverLabels(root_dir, sequence, output_dir, first_frame, last_frame, verbo
     if downSampleEvery>1:
         pcd = pcd.uniform_down_sample(downSampleEvery)
 
-    _ = o3d.io.write_point_cloud(f'{output_dir}/2013_05_28_drive_0000_sync_{first_frame:06d}_{last_frame:06d}.ply', pcd)
+    _ = o3d.io.write_point_cloud(f'{output_dir}/{sequence}_{first_frame:06d}_{last_frame:06d}.ply', pcd)
     # os.system("mkdir data/KITTI-360/outputs/labels/")
-    # np.save(f'{output_dir}/labels/2013_05_28_drive_0000_sync_{first_frame:06d}_{last_frame:06d}_labels.npy', PA.labels[:,None])
+    # np.save(f'{output_dir}/labels/{sequence}_{first_frame:06d}_{last_frame:06d}_labels.npy', PA.labels[:,None])
     return pcd
 
 if __name__ == "__main__":
@@ -88,9 +88,9 @@ if __name__ == "__main__":
     root_dir = "data/KITTI-360"
     sequence = args.sequence
     output_dir = "data/KITTI-360/outputs"
-    if os.path.isdir("data/KITTI-360/outputs/"):
-        os.system("rm -r data/KITTI-360/outputs/")
-    os.mkdir("data/KITTI-360/outputs/")
+    if os.path.isdir(output_dir):
+        os.system(f'rm -r {output_dir}')
+    os.mkdir(output_dir)
     frames = args.frames
 
     all_spcds = os.listdir(os.path.join(os.path.join(os.path.join(root_dir,"data_3d_semantics/train"),sequence),"static"))
@@ -99,7 +99,17 @@ if __name__ == "__main__":
     end = int(all_spcds[-1].split("_")[-1].split(".")[0])
     print(f'Start at {start}, end at {end}')
 
+    offset = 0
     for i in trange(start, end, frames):
-        pcd = recoverLabels(root_dir, sequence, output_dir, i, i+frames, verbose=True, downSampleEvery=2)
+        try:
+            pcd = recoverLabels(root_dir, sequence, output_dir, i-offset, min(i+frames, end), verbose=False, downSampleEvery=2)
+            offset = 0
+        except KeyboardInterrupt:
+            break
+        except:
+            offset += frames
 
-    # TODO: Download ply files
+    os.system(f'zip -q -r {root_dir}/{sequence}_{start:06d}_{end:06d}.zip {output_dir}')
+    
+    # Use this to save files if using Google Colab
+    os.system(f'mv {root_dir}/{sequence}_{start:06d}_{end:06d}.zip ../drive/MyDrive/{sequence}_{start:06d}_{end:06d}.zip')
