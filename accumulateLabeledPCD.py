@@ -87,7 +87,7 @@ if __name__ == "__main__":
 
     root_dir = "data/KITTI-360"
     sequence = args.sequence
-    output_dir = "data/KITTI-360/outputs"
+    output_dir = "data/KITTI-360/data_accumulated"
     if os.path.isdir(output_dir):
         os.system(f'rm -r {output_dir}')
     os.mkdir(output_dir)
