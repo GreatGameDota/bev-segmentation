@@ -75,14 +75,15 @@ def recoverLabels(root_dir, sequence, output_dir, first_frame, last_frame, verbo
         pcd = pcd.uniform_down_sample(downSampleEvery)
 
     _ = o3d.io.write_point_cloud(f'{output_dir}/{sequence}_{first_frame:06d}_{last_frame:06d}.ply', pcd)
-    # os.system("mkdir data/KITTI-360/outputs/labels/")
+    # os.system(f'mkdir {output_dir}/labels/')
     # np.save(f'{output_dir}/labels/{sequence}_{first_frame:06d}_{last_frame:06d}_labels.npy', PA.labels[:,None])
     return pcd
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Script to accumulate all labeled static point cloud points and save them to file.')
-    parser.add_argument("sequence", help="Sequence to accumulate for", default="2013_05_28_drive_0002_sync", type=str, nargs='*')
-    parser.add_argument("frames", help="Amount of frames to accumulate over", default=10, type=int, nargs='*')
+    parser.add_argument("--sequence", dest="sequence", help="Sequence to accumulate for", default="2013_05_28_drive_0002_sync", type=str, nargs='*')
+    parser.add_argument("--frames", dest="frames", help="Amount of frames to accumulate over", default=10, type=int, nargs='*')
+    parser.add_argument("--drive", dest="dive", help="Save result files in Google Drive", action='store_true', default=False)
     args = parser.parse_args()
 
     root_dir = "data/KITTI-360"
@@ -112,4 +113,5 @@ if __name__ == "__main__":
     os.system(f'zip -q -r {root_dir}/{sequence}_{start:06d}_{end:06d}.zip {output_dir}')
     
     # Use this to save files if using Google Colab
-    os.system(f'mv {root_dir}/{sequence}_{start:06d}_{end:06d}.zip ../drive/MyDrive/{sequence}_{start:06d}_{end:06d}.zip')
+    if args.drive:
+        os.system(f'mv {root_dir}/{sequence}_{start:06d}_{end:06d}.zip ../drive/MyDrive/{sequence}_{start:06d}_{end:06d}.zip')
