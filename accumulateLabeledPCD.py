@@ -83,7 +83,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Script to accumulate all labeled static point cloud points and save them to file.')
     parser.add_argument("--sequence", dest="sequence", help="Sequence to accumulate for", default="2013_05_28_drive_0002_sync", type=str, nargs='*')
     parser.add_argument("--frames", dest="frames", help="Amount of frames to accumulate over", default=10, type=int, nargs='*')
-    parser.add_argument("--drive", dest="dive", help="Save result files in Google Drive", action='store_true', default=False)
+    parser.add_argument("--drive", dest="drive", help="Save result files in Google Drive", action='store_true', default=False)
     args = parser.parse_args()
 
     root_dir = "data/KITTI-360"

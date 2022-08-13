@@ -199,9 +199,9 @@ def project_to_bev(points, colors, bboxes, bbox_colors, scale):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Script to generate bev images from accumulated point cloud data.')
     parser.add_argument("--sequence", dest="sequence", help="Sequence to generate images from", default="2013_05_28_drive_0002_sync", type=str, nargs='*')
-    # parser.add_argument("frames", help="Amount of frames to accumulate over", default=10, type=int, nargs='*')
+    parser.add_argument("--scale", dest="scale", help="Resolution of final BEV image", default=10, type=int, nargs='*')
     parser.add_argument("--images", dest="images", help="Save raw BEV images", action='store_true', default=False)
-    parser.add_argument("--drive", dest="dive", help="Save result files in Google Drive", action='store_true', default=False)
+    parser.add_argument("--drive", dest="drive", help="Save result files in Google Drive", action='store_true', default=False)
     args = parser.parse_args()
 
     os.system("export TCMALLOC_LARGE_ALLOC_REPORT_THRESHOLD='21329330176'")
@@ -400,7 +400,7 @@ if __name__ == "__main__":
         # pcd.colors = o3d.utility.Vector3dVector(np.concatenate([colors,bbox_pts_color], axis=0))
 
         # Project
-        top_image = project_to_bev(points, colors, bbox_points_proj, bbox_pts_color, scale=10)
+        top_image = project_to_bev(points, colors, bbox_points_proj, bbox_pts_color, scale=args.scale)
 
         # Save image
         image = top_image * 255
