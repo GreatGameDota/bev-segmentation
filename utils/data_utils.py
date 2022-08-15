@@ -1,6 +1,7 @@
 import matplotlib
 import numpy as np
 import open3d as o3d
+import yaml
 
 from kitti360scripts.helpers.annotation import Annotation3D, Annotation3DPly, global2local
 from kitti360scripts.helpers.labels import id2label, labels, Label
@@ -97,3 +98,16 @@ def loadBoundingBoxesDynamic(annotation3D):
             bboxes_window.append(bboxes_window_)
             times.append(times_)
     return bboxes, bboxes_window, colors, times
+
+def remapColors(pts, path, dtype='points'):
+    with open(path) as f:
+        remap = yaml.load(f, Loader=yaml.FullLoader)[dtype]
+    
+    for i,pt in enumerate(pts):
+        try:
+            pts[i] = remap[tuple(pt)]
+        except KeyboardInterrupt:
+            raise KeyboardInterrupt
+        except:
+            pts[i] = [0,0,0]
+    return pts

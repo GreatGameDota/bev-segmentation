@@ -202,15 +202,48 @@ if __name__ == "__main__":
     parser.add_argument("--scale", dest="scale", help="Resolution of final BEV image", default=10, type=int, nargs='*')
     parser.add_argument("--images", dest="images", help="Save raw BEV images", action='store_true', default=False)
     parser.add_argument("--drive", dest="drive", help="Save result files in Google Drive", action='store_true', default=False)
+    parser.add_argument("--data", dest="data", help="Class remapping yaml file to use", default="KITTI-360.yaml", type=str, nargs='*')
     args = parser.parse_args()
-
-    os.system("export TCMALLOC_LARGE_ALLOC_REPORT_THRESHOLD='21329330176'")
-    os.environ['TCMALLOC_LARGE_ALLOC_REPORT_THRESHOLD'] = '21329330176'
 
     data_path = "data/KITTI-360"
     sequence = args.sequence
+
+    filename = f"{data_path}/calibration/calib_cam_to_velo.txt"
+    lastrow = np.array([0,0,0,1]).reshape(1,4)
+    cam_to_velo = np.concatenate((np.loadtxt(filename).reshape(3,4), lastrow))
+
+    filename = f"{data_path}/calibration/calib_cam_to_pose.txt"
+    fid = open(filename,'r')
+    ret = readVariable(fid, "image_00", 3, 4)
+    lastrow = np.array([0,0,0,1]).reshape(1,4)
+    cam_to_pose = np.concatenate((ret, lastrow))
+
+    cam_df = pd.read_csv(f'{data_path}/data_poses/{sequence}/cam0_to_world.txt', sep=" ", header=None, index_col=0)
+    pose_df = pd.read_csv(f'{data_path}/data_poses/{sequence}/poses.txt', sep=" ", header=None, index_col=0)
+
+    intrin = np.array([
+                    [552.554261, 0, 682.049453, 0],
+                    [0, 552.554261, 238.769549, 0],
+                    [0, 0, 1, 0],
+    ])
+    x_fov_ang = 2 * np.arctan(1408/(2*552.554261))
+    x_fov_ang = x_fov_ang * (180/math.pi)
+
     an = Annotation3D(labelDir=f'{data_path}/data_3d_bboxes', sequence=sequence)
     anPly = Annotation3DPly(labelDir=f'{data_path}/data_3d_semantics', sequence=sequence, isDynamic=True)
+
+    bboxes, bboxes_window, bbox_colors = loadBoundingBoxes(an)
+    bboxes2, bboxes_window2, bbox_colors2, times = loadBoundingBoxesDynamic(an)
+
+    windows_unique = np.unique(np.array(bboxes_window), axis=0)
+    boxes = []
+    allbbox_colors = []
+    for window in windows_unique:
+        bboxes_ = [bboxes[i] for i in range(len(bboxes)) if bboxes_window[i][0]==window[0]]
+        bbox_colors_ = [bbox_colors[i][0] for i in range(len(bbox_colors)) if bboxes_window[i][0]==window[0]]
+        
+        boxes.append(bboxes_)
+        allbbox_colors.append(bbox_colors_)
 
     # https://github.com/autonomousvision/kitti360Scripts/blob/master/kitti360scripts/helpers/labels.py
     color2id = {}
@@ -221,41 +254,6 @@ if __name__ == "__main__":
         color2id[l.color] = l.id
     color2id[(127.5,127.5,127.5)] = 45
 
-    bboxes, bboxes_window, bbox_colors = loadBoundingBoxes(an)
-    bboxes2, bboxes_window2, bbox_colors2, times = loadBoundingBoxesDynamic(an)
-
-    filename = "data/KITTI-360/calibration/calib_cam_to_velo.txt"
-    lastrow = np.array([0,0,0,1]).reshape(1,4)
-    cam_to_velo = np.concatenate((np.loadtxt(filename).reshape(3,4), lastrow))
-
-    filename = "data/KITTI-360/calibration/calib_cam_to_pose.txt"
-    fid = open(filename,'r')
-    ret = readVariable(fid, "image_00", 3, 4)
-    lastrow = np.array([0,0,0,1]).reshape(1,4)
-    cam_to_pose = np.concatenate((ret, lastrow))
-
-    cam_df = pd.read_csv(f'data/KITTI-360/data_poses/{sequence}/cam0_to_world.txt', sep=" ", header=None, index_col=0)
-    pose_df = pd.read_csv(f'data/KITTI-360/data_poses/{sequence}/poses.txt', sep=" ", header=None, index_col=0)
-
-    intrin = np.array([
-                    [552.554261, 0, 682.049453, 0],
-                    [0, 552.554261, 238.769549, 0],
-                    [0, 0, 1, 0],
-    ])
-    x_fov_ang = 2 * np.arctan(1408/(2*552.554261))
-    x_fov_ang = x_fov_ang * (180/math.pi)
-
-    windows_unique = np.unique(np.array(bboxes_window), axis=0)
-    boxes = []
-    allbbox_colors = []
-    for window in windows_unique:
-        bboxes_ = [bboxes[i] for i in range(len(bboxes)) if bboxes_window[i][0]==window[0]]
-        bbox_colors_ = [bbox_colors[i] for i in range(len(bbox_colors)) if bboxes_window[i][0]==window[0]]
-        
-        boxes.append(bboxes_)
-        allbbox_colors.append(bbox_colors_)
-
-    # TODO Create custom config files for class ids of differing datasets
     '''
     0 empty (0, 0, 0)
     1 road (7, 9, 15)
@@ -266,7 +264,6 @@ if __name__ == "__main__":
     6 vehicle (26, 27, 28, 29, 30, 31)
     7 bike (32, 33)
     '''
-
     id_colors = [
                 [0, 0, 0],
                 [128, 64, 128],
@@ -284,16 +281,16 @@ if __name__ == "__main__":
         color2id2[tuple(c)] = count_
         count_ += 1
 
-    root = "data/KITTI-360/data_accumulated/"
+    root = f"{data_path}/data_accumulated/"
     paths = os.listdir(root)
     paths.sort()
 
-    output_dir = "data/KITTI-360/bev_images"
+    output_dir = f"{data_path}/bev_images"
     if os.path.isdir(output_dir):
         os.system(f'rm -r {output_dir}')
     os.mkdir(output_dir)
 
-    output_dir2 = "data/KITTI-360/seg_maps"
+    output_dir2 = f"{data_path}/seg_maps"
     if os.path.isdir(output_dir2):
         os.system(f'rm -r {output_dir2}')
     os.mkdir(output_dir2)
@@ -306,7 +303,6 @@ if __name__ == "__main__":
     # with zipfile.ZipFile(OUT_TRAIN, 'w') as img_out:
     for p in tqdm(paths):
         filename = f'{root}{p}'
-        # print(p)
         pcd = o3d.io.read_point_cloud(filename)
         num = int(filename.split("_")[-1].split(".")[0])
         # num = int(filename.split("_")[-2])
@@ -315,25 +311,7 @@ if __name__ == "__main__":
         points = np.asarray(pcd.points)
         
         colors = np.asarray(pcd.colors)
-        idx = 0
-        for pt in colors:
-            pt *= 255
-            if color2id[tuple(pt)] == 7 or color2id[tuple(pt)] == 9 or color2id[tuple(pt)] == 15:
-                colors[idx] = id_colors[1]
-            elif color2id[tuple(pt)] == 8:
-                colors[idx] = id_colors[2]
-            elif color2id[tuple(pt)] == 6 or color2id[tuple(pt)] == 10 or color2id[tuple(pt)] == 22:
-                colors[idx] = id_colors[3]
-            elif color2id[tuple(pt)] == 11 or color2id[tuple(pt)] == 12 or color2id[tuple(pt)] == 13 or color2id[tuple(pt)] == 14 or color2id[tuple(pt)] == 17 or color2id[tuple(pt)] == 20 or color2id[tuple(pt)] == 35 or color2id[tuple(pt)] == 37 or color2id[tuple(pt)] == 38 or color2id[tuple(pt)] == 39 or color2id[tuple(pt)] == 40 or color2id[tuple(pt)] == 41:
-                colors[idx] = id_colors[4]
-            elif color2id[tuple(pt)] == 24 or color2id[tuple(pt)] == 25:
-                colors[idx] = id_colors[4]
-            elif color2id[tuple(pt)] == 26 or color2id[tuple(pt)] == 27 or color2id[tuple(pt)] == 28 or color2id[tuple(pt)] == 29 or color2id[tuple(pt)] == 30 or color2id[tuple(pt)] == 31:
-                colors[idx] = id_colors[4]
-            elif color2id[tuple(pt)] == 32 or color2id[tuple(pt)] == 33:
-                colors[idx] = id_colors[4]
-            idx += 1
-        colors /= 255.
+        colors = remapColors((colors * 255).astype(np.uint8), f"data/{args.data}", dtype="points") / 255.
 
         points, center = project_points(points, num, pose_df)
         points = np.concatenate([points,[center]], axis=0)
@@ -345,25 +323,17 @@ if __name__ == "__main__":
         bbox_pts_color = []
         for idx in range(len(boxes)):
             boxs = boxes[idx]
+            allbbox_colors[idx] = remapColors(np.array(allbbox_colors[idx]) * 255, f"data/{args.data}", dtype="boxes")
             for j,box in enumerate(boxs):
-                colors_ = allbbox_colors[idx][j][0] * 255
+                colors_ = allbbox_colors[idx][j]
                 bounding = o3d.geometry.TriangleMesh.get_oriented_bounding_box(box)
-                
-                if color2id[tuple(colors_)] == 12 or color2id[tuple(colors_)] == 13 or color2id[tuple(colors_)] == 14 or color2id[tuple(colors_)] == 17 or color2id[tuple(colors_)] == 20 or color2id[tuple(colors_)] == 35 or color2id[tuple(colors_)] == 37 or color2id[tuple(colors_)] == 38 or color2id[tuple(colors_)] == 39 or color2id[tuple(colors_)] == 40 or color2id[tuple(colors_)] == 41:
-                    colors_ = id_colors[4]
-                elif color2id[tuple(colors_)] == 24 or color2id[tuple(colors_)] == 25:
-                    colors_ = id_colors[5]
-                elif color2id[tuple(colors_)] == 26 or color2id[tuple(colors_)] == 27 or color2id[tuple(colors_)] == 28 or color2id[tuple(colors_)] == 29 or color2id[tuple(colors_)] == 30 or color2id[tuple(colors_)] == 31:
-                    colors_ = id_colors[6]
-                elif color2id[tuple(colors_)] == 32 or color2id[tuple(colors_)] == 33:
-                    colors_ = id_colors[7]
                 
                 if tuple(colors_) in color2id2 and color2id2[tuple(colors_)] in ids:
                     for k in range(8):
                         point = np.asarray(bounding.get_box_points())[k]
                         bbox_points.append(point)
                         bbox_pts_color.append(colors_)
-
+                        
         # Dynamic Bbox
         for idx in range(len(bboxes2)):
             boxs = bboxes2[idx]
@@ -372,18 +342,10 @@ if __name__ == "__main__":
             
             box = bboxes2[idx][j]
             colors_ = bbox_colors2[idx][j][0] * 255
+            colors_ = remapColors(np.array(colors_)[None], f"data/{args.data}", dtype="boxes")
             timestamp = times[idx][j]
             bounding = o3d.geometry.TriangleMesh.get_oriented_bounding_box(box)
 
-            if color2id[tuple(colors_)] == 12 or color2id[tuple(colors_)] == 13 or color2id[tuple(colors_)] == 14 or color2id[tuple(colors_)] == 17 or color2id[tuple(colors_)] == 20 or color2id[tuple(colors_)] == 35 or color2id[tuple(colors_)] == 37 or color2id[tuple(colors_)] == 38 or color2id[tuple(colors_)] == 39 or color2id[tuple(colors_)] == 40 or color2id[tuple(colors_)] == 41:
-                colors_ = id_colors[4]
-            if color2id[tuple(colors_)] == 24 or color2id[tuple(colors_)] == 25:
-                colors_ = id_colors[5]
-            elif color2id[tuple(colors_)] == 26 or color2id[tuple(colors_)] == 27 or color2id[tuple(colors_)] == 28 or color2id[tuple(colors_)] == 29 or color2id[tuple(colors_)] == 30 or color2id[tuple(colors_)] == 31:
-                colors_ = id_colors[6]
-            elif color2id[tuple(colors_)] == 32 or color2id[tuple(colors_)] == 33:
-                colors_ = id_colors[7]
-            
             if abs(timestamp - num) < 11 and tuple(colors_) in color2id2 and color2id2[tuple(colors_)] in ids:
                 for k in range(8):
                     point = np.asarray(bounding.get_box_points())[k]
