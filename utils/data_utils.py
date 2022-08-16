@@ -10,6 +10,7 @@ Author: GreatGameDota https://gihub.com/GreatGameDota
 Copyright 2022
 
 Modified from: https://github.com/autonomousvision/kitti360Scripts/blob/master/kitti360scripts/viewer/kitti360Viewer3D.py
+TODO Separate out utils into multiple specific files?
 '''
 
 def getColor(idx):
@@ -111,3 +112,10 @@ def remapColors(pts, path, dtype='points'):
         except:
             pts[i] = [0,0,0]
     return pts
+    
+def crop_img(img,cropx,cropy,top,bottom,left,right):
+    startx = cropx-(left//2)
+    starty = cropy-(top//2)
+    endx = cropx+(right//2)
+    endy = cropy+(bottom//2)
+    return img[starty:endy,startx:endx]

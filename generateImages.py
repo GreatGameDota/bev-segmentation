@@ -12,9 +12,6 @@ import importlib
 import zipfile
 from PIL import Image
 
-import warnings
-warnings.filterwarnings("ignore")
-
 from kitti360scripts.helpers.annotation import Annotation3D, Annotation3DPly, global2local
 from kitti360scripts.helpers.labels import id2label, labels, Label
 from kitti360scripts.devkits.commons.loadCalibration import readVariable
@@ -43,14 +40,7 @@ def in_range_points(points, x, y, z, x_range, y_range, z_range):
     idxs = np.logical_and.reduce((x > x_range[0], x < x_range[1], y > y_range[0], y < y_range[1], z > z_range[0], z < z_range[1]))
     return points[idxs], idxs
 
-def crop_img(img,cropx,cropy,top,bottom,left,right):
-    startx = cropx-(left//2)
-    starty = cropy-(top//2)
-    endx = cropx+(right//2)
-    endy = cropy+(bottom//2)
-    return img[starty:endy,startx:endx]
-
-def project_to_bev(points, colors, bboxes, bbox_colors, scale):
+def project_to_bev(points, colors, bboxes, bbox_colors, color2id2, scale=10):
     x = points[:, 0]
     y = points[:, 1]
     z = points[:, 2]
@@ -106,7 +96,6 @@ def project_to_bev(points, colors, bboxes, bbox_colors, scale):
     img = crop_img(img, center_x + 1000, center_y + 2000, 100*scale, 0, 50*scale, 50*scale)
     img = cv2.flip(img, 1)
 
-    # ids = [21] + list(range(45,21,-1)) + list(range(20,9,-1)) + [6,9,8,7]
     ids = [3,2,4,1]
     x_img = img.shape[1]
     y_img = img.shape[0]
@@ -198,11 +187,11 @@ def project_to_bev(points, colors, bboxes, bbox_colors, scale):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Script to generate bev images from accumulated point cloud data.')
-    parser.add_argument("--sequence", dest="sequence", help="Sequence to generate images from", default="2013_05_28_drive_0002_sync", type=str, nargs='*')
-    parser.add_argument("--scale", dest="scale", help="Resolution of final BEV image", default=10, type=int, nargs='*')
+    parser.add_argument("--sequence", dest="sequence", help="Sequence to generate images from", default="2013_05_28_drive_0002_sync", type=str)
+    parser.add_argument("--scale", dest="scale", help="Resolution of final BEV image", default=10, type=int)
     parser.add_argument("--images", dest="images", help="Save raw BEV images", action='store_true', default=False)
     parser.add_argument("--drive", dest="drive", help="Save result files in Google Drive", action='store_true', default=False)
-    parser.add_argument("--data", dest="data", help="Class remapping yaml file to use", default="KITTI-360.yaml", type=str, nargs='*')
+    parser.add_argument("--data", dest="data", help="Class remapping yaml file to use", default="KITTI-360.yaml", type=str)
     args = parser.parse_args()
 
     data_path = "data/KITTI-360"
@@ -245,24 +234,15 @@ if __name__ == "__main__":
         boxes.append(bboxes_)
         allbbox_colors.append(bbox_colors_)
 
-    # https://github.com/autonomousvision/kitti360Scripts/blob/master/kitti360scripts/helpers/labels.py
-    color2id = {}
-    for l in labels[6:-1]:
-        if l.color in color2id:
-            # print(l.color,l.id)
-            pass
-        color2id[l.color] = l.id
-    color2id[(127.5,127.5,127.5)] = 45
-
     '''
-    0 empty (0, 0, 0)
-    1 road (7, 9, 15)
-    2 sidewalk (8)
-    3 ground (6, 10, 22)
-    4 building (11, 12, 13, 14, 17, 20, 35, 37, 38, 39, 40, 41)
-    5 person (24, 25)
-    6 vehicle (26, 27, 28, 29, 30, 31)
-    7 bike (32, 33)
+    0 empty
+    1 road
+    2 sidewalk
+    3 ground
+    4 building
+    5 person
+    6 vehicle
+    7 bike
     '''
     id_colors = [
                 [0, 0, 0],
@@ -295,12 +275,6 @@ if __name__ == "__main__":
         os.system(f'rm -r {output_dir2}')
     os.mkdir(output_dir2)
 
-    if args.drive:
-        os.system("rm -r '../drive/My Drive/seg_maps/'")
-        os.system("mkdir '../drive/My Drive/seg_maps/'")
-
-    # OUT_TRAIN = '../drive/My Drive/image.zip'
-    # with zipfile.ZipFile(OUT_TRAIN, 'w') as img_out:
     for p in tqdm(paths):
         filename = f'{root}{p}'
         pcd = o3d.io.read_point_cloud(filename)
@@ -323,9 +297,9 @@ if __name__ == "__main__":
         bbox_pts_color = []
         for idx in range(len(boxes)):
             boxs = boxes[idx]
-            allbbox_colors[idx] = remapColors(np.array(allbbox_colors[idx]) * 255, f"data/{args.data}", dtype="boxes")
+            allbbox_colors[idx] = remapColors(np.array(allbbox_colors[idx]) * 255, f"data/{args.data}", dtype="boxes") / 255.
             for j,box in enumerate(boxs):
-                colors_ = allbbox_colors[idx][j]
+                colors_ = allbbox_colors[idx][j] * 255
                 bounding = o3d.geometry.TriangleMesh.get_oriented_bounding_box(box)
                 
                 if tuple(colors_) in color2id2 and color2id2[tuple(colors_)] in ids:
@@ -357,38 +331,34 @@ if __name__ == "__main__":
         
         bbox_points_proj, _ = project_points(bbox_points, num, pose_df)
 
-        # pcd = o3d.geometry.PointCloud()
-        # pcd.points = o3d.utility.Vector3dVector(np.concatenate([points,bbox_points_proj], axis=0))
-        # pcd.colors = o3d.utility.Vector3dVector(np.concatenate([colors,bbox_pts_color], axis=0))
-
         # Project
-        top_image = project_to_bev(points, colors, bbox_points_proj, bbox_pts_color, scale=args.scale)
+        top_image = project_to_bev(points, colors, bbox_points_proj, bbox_pts_color, color2id2, scale=args.scale)
 
         # Save image
         image = top_image * 255
         image = image.astype(np.uint8)
 
-        seg_map = np.zeros([image.shape[0], image.shape[1], 1], dtype=np.int32)
+        seg_map = np.zeros([image.shape[0], image.shape[1], 1], dtype=np.uint8)
         for i in range(image.shape[0]):
             for j in range(image.shape[1]):
                 seg_map[i][j] = color2id2[tuple(image[i][j])]
 
         name = sequence + "_" + filename.split("_")[-2] + "_" + filename.split("_")[-1].split(".")[0]
-        if args.drive:
-            np.save(f'../drive/My Drive/seg_maps/{name}.npy', seg_map)
         np.save(f'{output_dir2}/{name}.npy', seg_map)
 
         if args.images:
             img = Image.fromarray(image)
             img.save(f'{output_dir}/{name}.png', "PNG")
 
-        # image = scipy.misc.toimage(image, high=np.max(image), low=np.min(image))
-        # file_object = io.BytesIO()
-        # image.save(file_object, "PNG")
-        # image.close()
-        # img_out.writestr("data/KITTI-360/bev_images/" + name + '.png', file_object.getvalue())
-
         # break
 
         del top_image
         del image
+        del seg_map
+    
+    if args.drive:
+        os.system(f"zip -q -r {data_path}/seg_maps.zip {output_dir2}")
+        os.system(f"mv {data_path}/seg_maps.zip ../drive/MyDrive/seg_maps.zip")
+        if args.images:
+            os.system(f"zip -q -r {data_path}/bev_images.zip {output_dir}")
+            os.system(f"mv {data_path}/bev_images.zip ../drive/MyDrive/bev_images.zip")
