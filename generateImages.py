@@ -316,7 +316,7 @@ if __name__ == "__main__":
             
             box = bboxes2[idx][j]
             colors_ = bbox_colors2[idx][j][0] * 255
-            colors_ = remapColors(np.array(colors_)[None], f"data/{args.data}", dtype="boxes")
+            colors_ = remapColors(np.array(colors_)[None], f"data/{args.data}", dtype="boxes")[0]
             timestamp = times[idx][j]
             bounding = o3d.geometry.TriangleMesh.get_oriented_bounding_box(box)
 
