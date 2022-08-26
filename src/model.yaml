@@ -1,0 +1,3 @@
+backbone: "tf_efficientnet_b0_ns"
+bifpn: "tf_efficientdet_d0"
+hidden_dim: 512
