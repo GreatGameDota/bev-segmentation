@@ -32,7 +32,6 @@ def iou_coef(y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
 def criterion1(pred1, targets):
   # l1 = F.mse_loss(pred1, targets)
   # l1 = F.binary_cross_entropy_with_logits(pred1, targets)
-  print(pred1.shape, targets.shape)
   l1 = 0.5*BCELoss(pred1, targets) + 0.5*TverskyLoss(pred1, targets)
   # l1 = F.cross_entropy(pred1, targets) # Multiclass in one channel (pred: B x n_classes x W x H | targets: B x W x H)
   # l1 = bce_dice_loss(pred1, targets) # Multiclass across multiple channels as 0-1
