@@ -1,6 +1,22 @@
+import torch
+from torch import nn
+import torch.nn.functional as F
+from torch.cuda import amp
+from torch.utils.data.dataloader import default_collate
+from tqdm import trange,tqdm
+
+from .loss import criterion1
 
 
-def train_model(epoch, optimizer, scaler=None, scheduler=None, history=None):
+def id_collate(batch):
+    new_batch = []
+    ids = []
+    for _batch in batch:
+        new_batch.append(_batch[:-1])
+        ids.append(_batch[-1])
+    return default_collate(new_batch), ids
+
+def train_model(train_cfg, model, train_loader, epoch, optimizer, scaler=None, scheduler=None, history=None):
     model.train()
     total_loss = 0
     
@@ -9,30 +25,27 @@ def train_model(epoch, optimizer, scaler=None, scheduler=None, history=None):
         img_batch1 = img_batch.cuda().float()
         y_batch = y_batch.cuda().float()
     
-        if config.scale:
+        if train_cfg['scale']:
           with amp.autocast():
             output1 = model(img_batch1)
-            loss = criterion1(output1, y_batch) / config.accumulation_steps
+            loss = criterion1(output1, y_batch) / train_cfg['accumulation_steps']
         else:
           output1 = model(img_batch1)
-          loss = criterion1(output1, y_batch) / config.accumulation_steps
+          loss = criterion1(output1, y_batch) / train_cfg['accumulation_steps']
 
-        total_loss += loss.data.cpu().numpy() * config.accumulation_steps
+        total_loss += loss.data.cpu().numpy() * train_cfg['accumulation_steps']
         t.set_description(f'Epoch {epoch+1}/{n_epochs}, LR: %6f, Loss: %.4f'%(optimizer.state_dict()['param_groups'][0]['lr'],total_loss/(i+1)))
 
         if history is not None:
           history.loc[epoch + i / len(train_loader), 'train_loss'] = loss.data.cpu().numpy()
           history.loc[epoch + i / len(train_loader), 'lr'] = optimizer.state_dict()['param_groups'][0]['lr']
 
-        if config.scale:
+        if train_cfg['scale']:
           scaler.scale(loss).backward()
-        elif config.apex:
-          with amp.scale_loss(loss, optimizer) as scaled_loss:
-            scaled_loss.backward()
         else:
           loss.backward()
         
-        if (i+1) % config.accumulation_steps == 0:
+        if (i+1) % train_cfg['accumulation_steps'] == 0:
           if config.scale:
             scaler.step(optimizer)
             scaler.update()
@@ -44,7 +57,7 @@ def train_model(epoch, optimizer, scaler=None, scheduler=None, history=None):
           lr = scheduler.get_lr((epoch * len(train_loader)) + (i + 1))
           optimizer.param_groups[0]['lr'] = config.lr * lr
 
-def evaluate_model(epoch, scheduler=None, history=None):
+def evaluate_model(train_cfg, model, val_loader, epoch, scheduler=None, history=None):
     model.eval()
     loss = 0
     pred = []

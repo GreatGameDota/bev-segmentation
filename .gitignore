@@ -1,3 +1,5 @@
 recoverKITTI360label/
-utils/__pycache__/
 outputs/
+src/runs/
+src/*/__pycache__/
+*/__pycache__/

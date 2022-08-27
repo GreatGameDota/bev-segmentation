@@ -1,8 +1,12 @@
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
+import numpy as np
+import pandas as pd
+import cv2
 
 class ImageDataset(Dataset):
-    def __init__(self, train_df, root_dir, seg_dir, folds=None, label_smoothing=0.01, transform=None, mode='train'):
+    def __init__(self, train_cfg, train_df, root_dir, seg_dir, folds=None, label_smoothing=0.01, transform=None, mode='train'):
+        self.train_cfg = train_cfg
         self.train_df = train_df[train_df.fold.isin(folds).reset_index(drop=True)].reset_index(drop=True)
         # self.train_df = train_df
         self.root_dir = root_dir
@@ -24,17 +28,17 @@ class ImageDataset(Dataset):
     
     def __getitem__(self, idx):
         if self.mode == 'train':
-          # idx = random.randint(0, len(self.ids)-1)
           idx %= len(self.ids)
           
         img_name = "0000" + self.ids[idx].split("_")[-1].split(".")[0]
-        
-        img = cv2.imread(f'{self.root_dir}{img_name}.png')
+        sequence = "_".join(self.ids[idx].split("_")[:6])
+
+        img = cv2.imread(f'{self.root_dir}{sequence}/image_00/data_rect/{img_name}.png')
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        img = cv2.resize(img, (config.input_H, config.input_W))
+        img = cv2.resize(img, (self.train_cfg['input_sz'], self.train_cfg['input_sz']))
         
         labels = np.load(f'{self.seg_dir}{self.ids[idx]}')
-        labels = cv2.resize(labels.astype(np.float32), (config.output_H, config.output_W)).astype(np.int16)
+        labels = cv2.resize(labels.astype(np.float32), (self.train_cfg['input_sz'], self.train_cfg['input_sz'])).astype(np.int16)
 
         if self.transform is not None:
           res = self.transform(image=img, mask=labels)

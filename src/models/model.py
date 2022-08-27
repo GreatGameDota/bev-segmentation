@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import math
 import timm
 from effdet.efficientdet import BiFpn, ConvBnAct2d
+from effdet import get_efficientdet_config
 
 # From: https://github.com/facebookresearch/detr/blob/main/models/position_encoding.py
 class PositionEmbeddingSine(nn.Module):

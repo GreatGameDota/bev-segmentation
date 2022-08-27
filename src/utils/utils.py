@@ -1,4 +1,7 @@
+import os
 import random
+import torch
+import numpy as np
 
 def seed_everything(seed):
     random.seed(seed)
@@ -12,7 +15,3 @@ def seed_everything(seed):
     os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
     g = torch.Generator()
     g.manual_seed(seed)
-
-def _init_fn(worker_id):
-    np.random.seed(config.seed)
-    random.seed(config.seed)

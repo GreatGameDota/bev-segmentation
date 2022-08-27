@@ -343,6 +343,12 @@ if __name__ == "__main__":
             for j in range(image.shape[1]):
                 seg_map[i][j] = color2id2[tuple(image[i][j])]
 
+        # Expand out seg_map to be multi channel
+        labels = []
+        for i in range(1,len(id_colors)):
+            labels.append(np.array(seg_map == i, dtype=np.int32)[:,:,0])
+        seg_map = np.rollaxis(np.array(labels), 0, 3)
+
         name = sequence + "_" + filename.split("_")[-2] + "_" + filename.split("_")[-1].split(".")[0]
         np.save(f'{output_dir2}/{name}.npy', seg_map)
 

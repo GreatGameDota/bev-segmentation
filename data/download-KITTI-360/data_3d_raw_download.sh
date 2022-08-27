@@ -4,7 +4,6 @@ train_list="$1"
 root_dir=data/KITTI-360
 data_3d_dir=data_3d_raw
 
-mkdir -p $root_dir
 mkdir -p $root_dir/$data_3d_dir
 
 cd $root_dir 

@@ -3,8 +3,11 @@ output_sz: 512
 epochs: 50
 batch_size: 2
 input_sz: 512
-lr: 1e-5
+lr: 1.0e-5
 folds: 5
 scale: True
-image_path: "KITTI-360/data_2d_raw/"
-label_path: "KITTI-360/seg_maps/"
+image_path: "data/KITTI-360/data_2d_raw/"
+label_path: "data/KITTI-360/seg_maps/"
+early_stop: 50
+seed: 42
+accumulation_steps: 1
