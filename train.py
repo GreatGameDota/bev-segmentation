@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
         fpn_config = get_efficientdet_config(model_cfg['bifpn'])
         model = BiFPN_CrossTD(fpn_config, model_cfg['backbone'], hidden_dim=model_cfg['hidden_dim'], out_sz=train_cfg['output_sz'], num_classes=train_cfg['classes'])
-        # model.freeze_backbone()
+        model.freeze_backbone()
         model = model.cuda()
 
         # optimizer = torch.optim.AdamW(model.parameters(), lr=train_cfg['lr'], betas=(0.9, 0.999), eps=1e-08, weight_decay=1e-2)
@@ -104,21 +104,23 @@ if __name__ == "__main__":
         # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=config.lr, total_steps=num_updates)
         scheduler = WarmupCosineSchedule(warmup=0.002, t_total=num_updates)
         
+        optimizer.param_groups[0]['lr'] = train_cfg['lr'] * scheduler.get_lr(0)
+
         for epoch in range(n_epochs-early_epoch):
             epoch += early_epoch
             torch.cuda.empty_cache()
             gc.collect()
 
-            # if epoch == 10:
-            #   model.unfreeze_backbone()
+            if epoch == 10:
+              model.unfreeze_backbone()
 
             with open(log_name, 'a') as f:
                 f.write(f'XXXXXXXXXXXXXX-- CYCLE INTER: {epoch+1} --XXXXXXXXXXXXXXXXXXX\n')
                 f.write(f"curr lr: {optimizer.state_dict()['param_groups'][0]['lr']}\n")
 
-            train_model(train_cfg, model, train_loader, epoch, optimizer, scaler=scaler, scheduler=scheduler, history=history)
+            train_model(train_cfg, model, train_loader, epoch, n_epochs, optimizer, scaler=scaler, scheduler=scheduler, history=history)
 
-            _, _, _, loss, kaggle = evaluate_model(train_cfg, model, val_loader, epoch, scheduler=None, history=history2)
+            _, _, _, loss, kaggle = evaluate_model(train_cfg, model, val_loader, epoch, log_name, scheduler=None, history=history2)
             
             if loss < best2:
                 best2 = loss
@@ -145,7 +147,7 @@ if __name__ == "__main__":
         model = BiFPN_CrossTD(fpn_config, model_cfg['backbone'], hidden_dim=model_cfg['hidden_dim'], out_sz=train_cfg['output_sz'], num_classes=train_cfg['classes'])
         model.load_state_dict(torch.load(f'{exp_dir}/model-fld{fold+1}.pth')['model_state'])
         model.cuda()
-        ids, pred, tars, loss, kaggle = evaluate_model(train_cfg, model, val_loader, 0, scheduler=None, history=history2)
+        ids, pred, tars, loss, kaggle = evaluate_model(train_cfg, model, val_loader, 0, log_name, scheduler=None, history=history2)
         for k,p in enumerate(pred):
             tars_.append(tars[k])
             preds_.append(p)

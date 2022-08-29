@@ -4,9 +4,30 @@ import torch.nn.functional as F
 from torch.cuda import amp
 from torch.utils.data.dataloader import default_collate
 from tqdm import trange,tqdm
+import numpy as np
 
 from .loss import criterion1
 
+# Modified from: https://www.kaggle.com/code/awsaf49/uwmgi-unet-train-pytorch
+def dice_coef(y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
+    y_true = torch.from_numpy(y_true)
+    y_pred = torch.from_numpy(y_pred)
+    y_true = y_true.to(torch.float32)
+    y_pred = (y_pred>thr).to(torch.float32)
+    inter = (y_true*y_pred).sum(dim=dim)
+    den = y_true.sum(dim=dim) + y_pred.sum(dim=dim)
+    dice = ((2*inter+epsilon)/(den+epsilon)).mean(dim=(1,0))
+    return dice
+
+def iou_coef(y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
+    y_true = torch.from_numpy(y_true)
+    y_pred = torch.from_numpy(y_pred)
+    y_true = y_true.to(torch.float32)
+    y_pred = (y_pred>thr).to(torch.float32)
+    inter = (y_true*y_pred).sum(dim=dim)
+    union = (y_true + y_pred - y_true*y_pred).sum(dim=dim)
+    iou = ((inter+epsilon)/(union+epsilon)).mean(dim=(1,0))
+    return iou
 
 def id_collate(batch):
     new_batch = []
@@ -16,7 +37,7 @@ def id_collate(batch):
         ids.append(_batch[-1])
     return default_collate(new_batch), ids
 
-def train_model(train_cfg, model, train_loader, epoch, optimizer, scaler=None, scheduler=None, history=None):
+def train_model(train_cfg, model, train_loader, epoch, n_epochs, optimizer, scaler=None, scheduler=None, history=None):
     model.train()
     total_loss = 0
     
@@ -46,7 +67,7 @@ def train_model(train_cfg, model, train_loader, epoch, optimizer, scaler=None, s
           loss.backward()
         
         if (i+1) % train_cfg['accumulation_steps'] == 0:
-          if config.scale:
+          if train_cfg['scale']:
             scaler.step(optimizer)
             scaler.update()
           else:
@@ -55,9 +76,9 @@ def train_model(train_cfg, model, train_loader, epoch, optimizer, scaler=None, s
         
         if scheduler is not None:
           lr = scheduler.get_lr((epoch * len(train_loader)) + (i + 1))
-          optimizer.param_groups[0]['lr'] = config.lr * lr
+          optimizer.param_groups[0]['lr'] = train_cfg['lr'] * lr
 
-def evaluate_model(train_cfg, model, val_loader, epoch, scheduler=None, history=None):
+def evaluate_model(train_cfg, model, val_loader, epoch, log_name, scheduler=None, history=None):
     model.eval()
     loss = 0
     pred = []
@@ -83,8 +104,8 @@ def evaluate_model(train_cfg, model, val_loader, epoch, scheduler=None, history=
     pred = np.array(pred)
     real = np.array(real)
     
-    kaggle = dice_coef(pred, real)
-    jaccard = iou_coef(pred, real)
+    dice = dice_coef(pred, real)
+    iou = iou_coef(pred, real)
     
     loss /= len(val_loader)
     
@@ -94,10 +115,10 @@ def evaluate_model(train_cfg, model, val_loader, epoch, scheduler=None, history=
     if scheduler is not None:
       scheduler.step()
 
-    print(f'Dev loss: %.4f, Kaggle: %.6f, Jaccard: %.6f'%(loss,kaggle,jaccard))
+    print(f'Dev loss: %.4f, Kaggle: %.6f, IoU: %.6f'%(loss,dice,iou))
     
     with open(log_name, 'a') as f:
       f.write(f'val loss: {loss}\n')
-      f.write(f'val Metric: {kaggle}\n')
+      f.write(f'val Metric: {dice}\n')
 
-    return P, pred, real, loss, kaggle
+    return P, pred, real, loss, dice

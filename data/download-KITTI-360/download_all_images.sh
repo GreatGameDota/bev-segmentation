@@ -20,8 +20,8 @@ data_2d_dir=data_2d_raw
 cd $root_dir 
 
 # perspective images
-for sequence in ${train_list}; do
-    for camera in ${cam_list}; do 
+for sequence in ${train_list[@]}; do
+    for camera in ${cam_list[@]}; do 
 	zip_file=${sequence}_image_${camera}.zip
         curl https://s3.eu-central-1.amazonaws.com/avg-projects/KITTI-360/data_2d_raw/${zip_file} -o ${zip_file}
 	unzip -d ${data_2d_dir} ${zip_file} 
