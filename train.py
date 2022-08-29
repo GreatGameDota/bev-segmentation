@@ -32,7 +32,17 @@ if __name__ == "__main__":
         train_cfg = yaml.load(f, Loader=yaml.FullLoader)
     
     seed_everything(train_cfg['seed'])
+    
+    ids = os.listdir(train_cfg['label_path'])
+    ids.sort()
+    train_df = pd.DataFrame({"id": ids})
+    train_df['sequence'] = train_df['id'].apply(lambda x: "_".join(x.split("_")[:6]))
 
+    train_df['fold'] = -1
+    skf = StratifiedKFold(n_splits=train_cfg['folds'], random_state=train_cfg['seed'], shuffle=True)
+    for fld, (_,test_idx) in enumerate(skf.split(train_df.index, train_df['sequence'])):
+        train_df.iloc[test_idx, -1] = fld
+    
     def _init_fn(worker_id):
         np.random.seed(train_cfg['seed'])
         random.seed(train_cfg['seed'])
@@ -65,15 +75,6 @@ if __name__ == "__main__":
         early_epoch = 0
         early_stop = 0
         
-        ids = os.listdir(train_cfg['label_path'])
-        ids.sort()
-        train_df = pd.DataFrame({"id": ids, "label": np.ones(len(ids))})
-
-        train_df['fold'] = -1
-        skf = KFold(n_splits=train_cfg['folds'], random_state=train_cfg['seed'], shuffle=True)
-        for fld, (_,test_idx) in enumerate(skf.split(train_df['id'], train_df['label'])):
-            train_df.iloc[test_idx, -1] = fld
-
         val_dataset = ImageDataset(train_cfg, train_df, train_cfg['image_path'], 
                                     seg_dir=train_cfg['label_path'], folds=[fold], mode='val', transform=val_transform)
 
