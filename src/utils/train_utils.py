@@ -6,28 +6,7 @@ from torch.utils.data.dataloader import default_collate
 from tqdm import trange,tqdm
 import numpy as np
 
-from .loss import criterion1
-
-# Modified from: https://www.kaggle.com/code/awsaf49/uwmgi-unet-train-pytorch
-def dice_coef(y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
-    y_true = torch.from_numpy(y_true)
-    y_pred = torch.from_numpy(y_pred)
-    y_true = y_true.to(torch.float32)
-    y_pred = (y_pred>thr).to(torch.float32)
-    inter = (y_true*y_pred).sum(dim=dim)
-    den = y_true.sum(dim=dim) + y_pred.sum(dim=dim)
-    dice = ((2*inter+epsilon)/(den+epsilon)).mean(dim=(1,0))
-    return dice
-
-def iou_coef(y_true, y_pred, thr=0.5, dim=(2,3), epsilon=0.001):
-    y_true = torch.from_numpy(y_true)
-    y_pred = torch.from_numpy(y_pred)
-    y_true = y_true.to(torch.float32)
-    y_pred = (y_pred>thr).to(torch.float32)
-    inter = (y_true*y_pred).sum(dim=dim)
-    union = (y_true + y_pred - y_true*y_pred).sum(dim=dim)
-    iou = ((inter+epsilon)/(union+epsilon)).mean(dim=(1,0))
-    return iou
+from .loss import criterion1, dice_coef, iou_coef
 
 def id_collate(batch):
     new_batch = []
@@ -78,34 +57,35 @@ def train_model(train_cfg, model, train_loader, epoch, n_epochs, optimizer, scal
           lr = scheduler.get_lr((epoch * len(train_loader)) + (i + 1))
           optimizer.param_groups[0]['lr'] = train_cfg['lr'] * lr
 
+@torch.no_grad()
 def evaluate_model(train_cfg, model, val_loader, epoch, log_name, scheduler=None, history=None):
     model.eval()
     loss = 0
     pred = []
     real = []
     P = []
-    with torch.no_grad():
-        for batch, ids in tqdm(val_loader):
-            img_batch, y_batch = batch
-            img_batch1 = img_batch.cuda().float()
-            y_batch = y_batch.cuda().float()
+    for batch, ids in tqdm(val_loader):
+        img_batch, y_batch = batch
+        img_batch1 = img_batch.cuda().float()
+        y_batch = y_batch.cuda().float()
 
-            o1 = model(img_batch1)
-            l1 = criterion1(o1, y_batch)
-            loss += l1
-            
-            for i,batch in enumerate(o1):
-              P.append(ids[i])
-              # pred.append(torch.argmax(F.softmax(batch), 0).cpu().numpy())
-              pred.append(F.sigmoid(batch).cpu().numpy())
-            for tar in y_batch:
-              real.append(tar.cpu().numpy())
+        o1 = model(img_batch1)
+        l1 = criterion1(o1, y_batch)
+        loss += l1
+        
+        for i,batch in enumerate(o1):
+          P.append(ids[i])
+          y_pred = nn.Sigmoid()(batch)
+          # pred.append(torch.argmax(F.softmax(batch), 0).cpu().numpy())
+          pred.append([dice_coef(y_batch[i], y_pred).cpu().numpy(), iou_coef(y_batch[i], y_pred).cpu().numpy(), dice_coef(y_batch[i][:,0], y_pred[:,0]).cpu().numpy()])
+        # for tar in y_batch:
+        #   real.append(tar.cpu().numpy())
     
-    pred = np.array(pred)
-    real = np.array(real)
-    
-    dice = dice_coef(pred, real)
-    iou = iou_coef(pred, real)
+    # dice = dice_coef(pred, real)
+    # iou = iou_coef(pred, real)
+    pred = np.mean(pred, axis=0)
+    dice = pred[0]
+    iou = pred[1]
     
     loss /= len(val_loader)
     
