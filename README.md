@@ -54,3 +54,9 @@ python generateImages.py --sequence 2013_05_28_drive_0000_sync --scale 10 --imag
 chmod +x data/download-KITTI-360/download_all_images.sh
 ./data/download-KITTI-360/download_all_images.sh
 ```
+
+### Begin Training
+
+```
+python train.py --model_cfg model.yaml --train_cfg train_cfg.yaml --drive
+```
