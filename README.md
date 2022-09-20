@@ -28,7 +28,7 @@ sh data/download-KITTI-360/download_all.sh 2013_05_28_drive_0000_sync
 
 ### Accumulate Labeled Point Cloud Data
 
-<img src="https://github.com/GreatGameDota/bev-segmentation/blob/main/.github/accum.png">
+<img src="https://github.com/GreatGameDota/bev-segmentation/blob/main/.github/accum.png?raw=true">
 
 ```
 python accumulateLabeledPCD.py --sequence 2013_05_28_drive_0000_sync --frames 10 --drive
@@ -38,7 +38,7 @@ python accumulateLabeledPCD.py --sequence 2013_05_28_drive_0000_sync --frames 10
 
 ### Generate Bird's Eye View images and segmentation maps
 
-<img src="https://github.com/GreatGameDota/bev-segmentation/blob/main/.github/bev.png">
+<img src="https://github.com/GreatGameDota/bev-segmentation/blob/main/.github/bev.png?raw=true">
 
 ```
 python generateImages.py --sequence 2013_05_28_drive_0000_sync --scale 10 --images --drive --data KITTI-360.yaml
